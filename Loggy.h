@@ -150,6 +150,11 @@ private:
             m_logFile.flush();
             m_logFile.close();
         }
+        // Close the standard output streams.
+        fclose(stdout);
+        fclose(stderr);
+        // Free the allocated console.
+        FreeConsole();
 #endif
     }
 
