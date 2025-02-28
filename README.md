@@ -32,7 +32,67 @@ C++17+
 
 ### Integration
 
+1. **Include the Header**
+
 Simply add `Loggy.h` to your project and include it:
 
 ```cpp
 #include "Loggy.h"
+```
+
+2. **Set the Console Title (Optional)**
+
+If you want to customize the console title, call `Loggy::setConsoleTitle`:
+
+```cpp
+Loggy::setConsoleTitle("My Custom Console Title [DEBUG]");
+```
+
+3. **Log Messages**
+
+Use the `LOG` macro to log messages. This macro automatically passes the calling function's name:
+
+```cpp
+LOG(LogLevel::INFO, "Application started");
+```
+
+For variadic logging, simply pass additional parameters:
+
+```cpp
+int value = 42;
+LOG(LogLevel::DEBUG_LEVEL, "The value is: ", std::dec, value);
+```
+
+4. **Build Configuration**
+
+Ensure your project is compiled with `_DEBUG` defined to enable logging (already defined by Visual Studio). In release builds, the logging macros are disabled so that no log output is generated.
+
+## Example
+
+Below is a small example illustrating the usage:
+
+```cpp
+#include "Loggy.h"
+#include <stdexcept>
+
+int main() {
+#ifdef _DEBUG
+    // Optionally set a custom console title before any logging occurs.
+    Loggy::setConsoleTitle("MyApp [DEBUG]");
+
+    // Log some messages.
+    LOG(LogLevel::INFO, "Application started");
+
+    int value = 42;
+    LOG(LogLevel::DEBUG_LEVEL, "Value: ", value);
+
+    try {
+        throw std::runtime_error("An error occurred!");
+    } catch (const std::exception& ex) {
+        LOG(LogLevel::_ERROR, "Exception caught: ", ex.what());
+    }
+#endif
+
+    return 0;
+}
+```
