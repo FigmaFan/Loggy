@@ -15,9 +15,6 @@ Loggy is active only in debug builds, ensuring that in release mode minimal trac
 - **Thread-Safe Logging:**  
   Uses a mutex to ensure that log messages from multiple threads do not conflict.
 
-- **Customizable Console Title:**  
-  Easily set the console title before the logger is used.
-
 - **Multiple Log Levels:**  
   Supports log levels such as `DEBUG_LEVEL`, `INFO`, `WARN`, `_ERROR`, and `FATAL`.
 
