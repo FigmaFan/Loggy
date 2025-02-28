@@ -27,6 +27,10 @@ Loggy is active only in debug builds, ensuring that in release mode minimal trac
 - **Log File on Desktop:**  
   The log file is created on the user's Desktop as `Main.log`. If the file already exists, its content is overwritten.
 
+## Requirements
+
+C++17+
+
 ## Usage
 
 ### Integration
