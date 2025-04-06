@@ -1,98 +1,114 @@
+![Header-only](https://img.shields.io/badge/header--only-yes-blue.svg)
+![C++17](https://img.shields.io/badge/C%2B%2B-17%2B-brightgreen.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-yellow.svg)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-orange.svg)
+
 # Loggy
 
-**Loggy** is a header-only, RAII-based logging library for C++ projects, implemented as a Singleton.  
-It provides an easy-to-use logging interface that writes messages to both the console and a log file on the user's Desktop.  
-Loggy is active only in debug builds, ensuring that in release mode minimal traces remain.
+**Loggy** is a feature-rich, header-only, RAII-based logging library for modern C++ projects. It provides a thread-safe, customizable logging interface that outputs to the console and a log file. Designed for developer sanity and zero-dependency deployment, Loggy is activated only in debug builds by default.
 
-## Features
+---
 
-- **Header-only:**  
-  Simply include the header in your project—no additional binaries or libraries required.
+## 🔧 Features
 
-- **RAII & Singleton:**  
-  The logger is automatically initialized on first use and cleaned up on program exit.
+- **Header-only:** Drop-in header, no external dependencies.
+- **RAII & Singleton:** Automatic init/deinit, but also supports manual instantiation.
+- **Thread-Safe:** Uses `std::mutex` to avoid race conditions.
+- **Multiple Log Levels:** `DEBUG`, `INFO`, `WARN`, `ERR`, `FATAL`
+- **Customizable Timestamp Format:** Choose your own time representation.
+- **Console Output with Colors:** Cross-platform color-coded logs.
+- **Optional Console Allocation (Windows):** Dynamically attach a console window in GUI apps.
+- **Log File Output:** Log file path is user-defined; supports log rotation at 5MB.
+- **Custom Log Handlers:** Hook in your own logging backend.
+- **Thread ID in Output:** Know who did the thing.
+- **Auto-Flush Mode:** Optional immediate flushing to log file/console.
 
-- **Thread-Safe Logging:**  
-  Uses a mutex to ensure that log messages from multiple threads do not conflict.
+---
 
-- **Multiple Log Levels:**  
-  Supports log levels such as `DEBUG_LEVEL`, `INFO`, `WARN`, `_ERROR`, and `FATAL`.
+## 💻 Requirements
+- C++17 or later
 
-- **Formatted Timestamps:**  
-  Each log message is prefixed with a timestamp in the format `YYYY-MM-DD HH:MM:SS`.
+---
 
-- **Log File on Desktop:**  
-  The log file is created on the user's Desktop as `Main.log`. If the file already exists, its content is overwritten.
+## 📦 Integration
 
-## Requirements
-
-C++17+
-
-## Usage
-
-### Integration
-
-1. **Include the Header**
-
-Simply add `Loggy.h` to your project and include it:
-
+### 1. Include the Header
 ```cpp
 #include "Loggy.h"
 ```
 
-2. **Set the Console Title (Optional)**
-
-If you want to customize the console title, call `Loggy::setConsoleTitle`:
-
+### 2. (Optional) Initialize Console
 ```cpp
-Loggy::setConsoleTitle("My Custom Console Title [DEBUG]");
+Logger::instance().initializeConsole("My Custom Console Title");
+Logger::instance().enableConsoleOutput(true);
 ```
 
-3. **Log Messages**
-
-Use the `LOG` macro to log messages. This macro automatically passes the calling function's name:
-
+### 3. Configure (Optional)
 ```cpp
-LOG(LogLevel::INFO, "Application started");
+Logger::instance().setLogPath("logs/app.log");
+Logger::instance().setTimestampFormat("%d-%m-%Y %H:%M:%S");
+Logger::instance().setLogLevel(LogLevel::DEBUG);
+Logger::instance().enableAutoFlush(true);
 ```
 
-For variadic logging, simply pass additional parameters:
-
+### 4. Log Messages
 ```cpp
-int value = 42;
-LOG(LogLevel::DEBUG_LEVEL, "The value is: ", std::dec, value);
+LOG(LogLevel::INFO, "App initialized.");
+LOG(LogLevel::DEBUG, "User input: ", inputValue);
 ```
 
-4. **Build Configuration**
+### 5. Custom Log Handler (Optional)
+```cpp
+Logger::instance().setCustomLogHandler([](const std::string& msg) {
+    // Send to remote service, overlay, etc.
+    std::cerr << "[Custom] " << msg << std::endl;
+});
+```
 
-Ensure your project is compiled with `_DEBUG` defined to enable logging (already defined by Visual Studio). In release builds, the logging macros are disabled so that no log output is generated.
+---
 
-## Example
-
-Below is a small example illustrating the usage:
-
+## 🧪 Example
 ```cpp
 #include "Loggy.h"
 #include <stdexcept>
 
 int main() {
 #ifdef _DEBUG
-    // Optionally set a custom console title before any logging occurs.
-    Loggy::setConsoleTitle("MyApp [DEBUG]");
+    Logger::instance().initializeConsole("MyApp [DEBUG]");
+    Logger::instance().enableConsoleOutput(true);
+    Logger::instance().setLogPath("Main.log");
 
-    // Log some messages.
     LOG(LogLevel::INFO, "Application started");
-
     int value = 42;
-    LOG(LogLevel::DEBUG_LEVEL, "Value: ", value);
+    LOG(LogLevel::DEBUG, "Value: ", value);
 
     try {
-        throw std::runtime_error("An error occurred!");
+        throw std::runtime_error("Something exploded!");
     } catch (const std::exception& ex) {
-        LOG(LogLevel::_ERROR, "Exception caught: ", ex.what());
+        LOG(LogLevel::ERR, "Caught exception: ", ex.what());
     }
 #endif
-
     return 0;
 }
 ```
+
+---
+
+## 🚨 Note on Release Builds
+
+By default, logging is disabled in release builds. Define `LOGGY_DISABLE_LOGGING` to explicitly suppress logging, or remove it to force logging even outside debug mode.
+
+---
+
+## 🧼 Default Behavior Summary
+- Console logging is enabled manually.
+- File output truncates `Main.log` by default unless changed.
+- All logs are timestamped and thread-safe.
+- All macros are no-ops in release unless you override.
+
+---
+
+Enjoy your logs. Or at least understand them. That's progress.
+
