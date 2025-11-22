@@ -7,108 +7,161 @@
 
 # Loggy
 
-**Loggy** is a feature-rich, header-only, RAII-based logging library for modern C++ projects. It provides a thread-safe, customizable logging interface that outputs to the console and a log file. Designed for developer sanity and zero-dependency deployment, Loggy is activated only in debug builds by default.
+**Loggy** is a feature-rich, header-only logging library for modern C++ projects. It is thread-safe, easily configurable, and writes to both console and file. Zero-dependency (standard library). Colored output is currently only available on Windows (via WinAPI). Rotations and filters can be set via macros.
 
 ---
 
-## 🔧 Features
-
-- **Header-only:** Drop-in header, no external dependencies.
-- **RAII & Singleton:** Automatic init/deinit, but also supports manual instantiation.
-- **Thread-Safe:** Uses `std::mutex` to avoid race conditions.
-- **Multiple Log Levels:** `DEBUG`, `INFO`, `WARN`, `ERR`, `FATAL`
-- **Customizable Timestamp Format:** Choose your own time representation.
-- **Console Output with Colors:** Cross-platform color-coded logs.
-- **Optional Console Allocation (Windows):** Dynamically attach a console window in GUI apps.
-- **Log File Output:** Log file path is user-defined; supports log rotation at 5MB.
-- **Custom Log Handlers:** Hook in your own logging backend.
-- **Thread ID in Output:** Know who did the thing.
-- **Auto-Flush Mode:** Optional immediate flushing to log file/console.
+## 🔧 Features (current state)
+- Header-only (`loggy.hpp`).
+- Thread-safe (Mutex, optional best-effort trylock to skip on contention).
+- Singleton access: `Logger::instance()` (manual shutdown possible).
+- Multiple log levels: `DEBUG, INFO, WARN, ERR, FATAL` (output of ERR as `ERROR`).
+- Compile-time level filter via `LOGGY_MIN_LEVEL` (0=DEBUG .. 4=FATAL).
+- Runtime level filter via `setLogLevel(LogLevel)`.
+- Optional file rotation: Size via `LOGGY_MAX_LOG_FILE_SIZE` (Default 5MB) + backups `LOGGY_ROTATE_BACKUPS`.
+- Check interval for rotation via `LOGGY_CHECK_INTERVAL` (lines).
+- Switchable outputs: `enableConsoleOutput()`, `enableFileOutput()`, `enableAutoFlush()`.
+- Custom timestamp format: `setTimestampFormat()` (Default `%Y-%m-%d %H:%M:%S`).
+- Thread ID can be shown/hidden: `includeThreadId(bool)` (Default on).
+- Function & (optional) file:line in output (`LOG_EX` or C++20 `source_location` variant).
+- Custom handler: `setCustomLogHandler(fn)`.
+- Windows: automatic console allocation via `initializeConsole()` (for GUI apps).
+- Color output (Windows only) controllable via `LOGGY_COLORIZE_CONSOLE`.
+- Scope Timer Utility: `LogScopeTimer` measures duration and logs on destruction.
+- Best performance option: `LOGGY_BEST_EFFORT_TRYLOCK` (set to 1 to discard log on mutex block).
 
 ---
 
-## 💻 Requirements
-- C++17 or later
+## Requirements
+- C++ 17 (optionally uses `std::format` if available >= C++ 23 implementation).
 
 ---
 
-## 📦 Integration
+## Integration
 
-### 1. Include the Header
+### 1. Include
 ```cpp
-#include "Loggy.h"
+#include "loggy.hpp"
 ```
 
-### 2. (Optional) Initialize Console
+### 2. (Optional, Windows) Create Console
 ```cpp
-Logger::instance().initializeConsole("My Custom Console Title");
-Logger::instance().enableConsoleOutput(true);
+Logger::instance().initializeConsole("My Window");
 ```
 
-### 3. Configure (Optional)
+### 3. Basic Configuration
 ```cpp
-Logger::instance().setLogPath("logs/app.log");
-Logger::instance().setTimestampFormat("%d-%m-%Y %H:%M:%S");
-Logger::instance().setLogLevel(LogLevel::DEBUG);
-Logger::instance().enableAutoFlush(true);
+auto& L = Logger::instance();
+L.setLogPath("logs/app.log");           // creates/opens file (truncates on first set)
+L.setTimestampFormat("%d-%m-%Y %H:%M:%S");
+L.setLogLevel(LogLevel::DEBUG);          // Runtime min-level
+L.includeThreadId(true);                 // Default is already true
+L.enableAutoFlush(true);                 // flush immediately
+// Optionally disable outputs
+// L.enableConsoleOutput(false);
+// L.enableFileOutput(false);
 ```
 
-### 4. Log Messages
+### 4. Logging Macros
 ```cpp
-LOG(LogLevel::INFO, "App initialized.");
-LOG(LogLevel::DEBUG, "User input: ", inputValue);
+LOG(LogLevel::INFO, "Start");
+LOG(LogLevel::DEBUG, "Value = ", value);
+LOG_EX(LogLevel::WARN, "Something happened: ", code); // includes file & line
 ```
 
-### 5. Custom Log Handler (Optional)
+The `LOG` macro automatically includes the function name. `LOG_EX` additionally includes file & line.
+
+### 5. C++20 Variant (source_location)
+When compiling with C++20 or newer, an overloaded `log` method can be used, which automatically captures file, line, and function:
 ```cpp
-Logger::instance().setCustomLogHandler([](const std::string& msg) {
-    // Send to remote service, overlay, etc.
-    std::cerr << "[Custom] " << msg << std::endl;
+// No __FUNCTION__ or __FILE__/__LINE__ needed
+Logger::instance().log(LogLevel::INFO, "Hello from new variant");
+```
+
+### 6. Custom Handler
+```cpp
+Logger::instance().setCustomLogHandler([](const std::string& line){
+    // e.g., send remotely
+    std::cerr << "[CUSTOM] " << line << '\n';
 });
 ```
 
+### 7. Scope Timer
+```cpp
+{
+    LogScopeTimer t("expensiveOperation");
+    // ... work
+} // Automatically logs duration in microseconds
+```
+
+### 8. Shutdown (optional)
+```cpp
+Logger::instance().shutdown(); // flush & close
+```
+
 ---
 
-## 🧪 Example
+## Configuration Macros
+Definable at compile-time (e.g., via compiler flags):
+- `LOGGY_DISABLE_LOGGING` disables all LOG / LOG_EX macros.
+- `LOGGY_MIN_LEVEL` Compile-time minimum level (Default 0 = DEBUG).
+- `LOGGY_MAX_LOG_FILE_SIZE` Bytes until rotation (Default 5*1024*1024).
+- `LOGGY_ROTATE_BACKUPS` Number of backups (Default 3 -> file, file.1, .2, .3).
+- `LOGGY_CHECK_INTERVAL` Line interval for size check (Default 200).
+- `LOGGY_COLORIZE_CONSOLE` 1/0 for color output (Windows only).
+- `LOGGY_BEST_EFFORT_TRYLOCK` 1 to skip log on mutex contention.
+
+Runtime adjustments (public methods of the `Logger` class) provide additional control over behavior.
+
+---
+
+## Example
 ```cpp
-#include "Loggy.h"
+#include "loggy.hpp"
 #include <stdexcept>
 
 int main() {
-#ifdef _DEBUG
-    Logger::instance().initializeConsole("MyApp [DEBUG]");
-    Logger::instance().enableConsoleOutput(true);
+    Logger::instance().initializeConsole("App Console"); // optional (Windows)
     Logger::instance().setLogPath("Main.log");
 
     LOG(LogLevel::INFO, "Application started");
+
     int value = 42;
     LOG(LogLevel::DEBUG, "Value: ", value);
 
     try {
-        throw std::runtime_error("Something exploded!");
+        throw std::runtime_error("Explosion!");
     } catch (const std::exception& ex) {
-        LOG(LogLevel::ERR, "Caught exception: ", ex.what());
+        LOG_EX(LogLevel::ERR, "Caught exception: ", ex.what());
     }
-#endif
+
+    {
+        LogScopeTimer t("WorkBlock");
+        // simulate work
+    }
+
+    Logger::instance().shutdown();
     return 0;
 }
 ```
 
 ---
 
-## 🚨 Note on Release Builds
-
-By default, logging is disabled in release builds. Define `LOGGY_DISABLE_LOGGING` to explicitly suppress logging, or remove it to force logging even outside debug mode.
-
----
-
-## 🧼 Default Behavior Summary
-- Console logging is enabled manually.
-- File output truncates `Main.log` by default unless changed.
-- All logs are timestamped and thread-safe.
-- All macros are no-ops in release unless you override.
+## Build Notes
+Logging is always active unless `LOGGY_DISABLE_LOGGING` is defined. For lower cost in Release builds:
+- Set `LOGGY_MIN_LEVEL` higher (e.g., 1 for INFO).
+- Increase the runtime level via `setLogLevel()`.
+- For very high concurrency, set `LOGGY_BEST_EFFORT_TRYLOCK` to 1 to avoid blockages.
 
 ---
 
-Enjoy your logs. Or at least understand them. That's progress.
+## Default Behavior
+- Console & File output are active by default (File only effective after `setLogPath`).
+- Timestamp format: `%Y-%m-%d %H:%M:%S`.
+- Thread ID is included (can be disabled).
+- Function name is always in the output (macros). File & line only with `LOG_EX` or the C++20 variant.
+- Rotation: by size > 5MB (3 backups) at check intervals (200 lines).
+- ERR level text appears as `ERROR`.
+- Color output on Windows only, if enabled.
 
+---
